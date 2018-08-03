@@ -35,7 +35,7 @@ class Binary{
 	public const LITTLE_ENDIAN = 0x01;
 
 	public static function signByte(int $value) : int{
-		return $value << 56 >> 56;
+		return PHP_INT_SIZE === 8 ? ($value << 56 >> 56) : ($value << 24 >> 24);
 	}
 
 	public static function unsignByte(int $value) : int{
@@ -43,7 +43,7 @@ class Binary{
 	}
 
 	public static function signShort(int $value) : int{
-		return $value << 48 >> 48;
+		return PHP_INT_SIZE === 8 ? ($value << 48 >> 48) : ($value << 16 >> 16);
 	}
 
 	public static function unsignShort(int $value) : int{
@@ -51,7 +51,7 @@ class Binary{
 	}
 
 	public static function signInt(int $value) : int{
-		return $value << 32 >> 32;
+		return PHP_INT_SIZE === 8 ? ($value << 32 >> 32) : $value;
 	}
 
 	public static function unsignInt(int $value) : int{
@@ -379,41 +379,71 @@ class Binary{
 
 	/**
 	 * Reads an 8-byte integer.
+	 * Note that this method will return a string on 32-bit PHP.
 	 *
 	 * @param string $str
-	 * @return int
+	 * @return int|string
 	 */
-	public static function readLong(string $str) : int{
-		return unpack("J", $str)[1];
+	public static function readLong(string $str){
+		if(PHP_INT_SIZE === 8){
+			return unpack("J", $str)[1];
+		}else{
+			$value = "0";
+			for($i = 0; $i < 8; $i += 2){
+				$value = bcmul($value, "65536", 0);
+				$value = bcadd($value, (string) self::readShort(substr($x, $i, 2)), 0);
+			}
+
+			if(bccomp($value, "9223372036854775807") == 1){
+				$value = bcadd($value, "-18446744073709551616");
+			}
+
+			return $value;
+		}
 	}
 
 	/**
 	 * Writes an 8-byte integer.
 	 *
-	 * @param int $value
+	 * @param int|string $value
 	 * @return string
 	 */
-	public static function writeLong(int $value) : string{
-		return pack("J", $value);
+	public static function writeLong($value) : string{
+		if(PHP_INT_SIZE === 8){
+			return pack("J", $value);
+		}else{
+			$x = "";
+			$value = (string) $value;
+
+			if(bccomp($value, "0") == -1){
+				$value = bcadd($value, "18446744073709551616");
+			}
+
+			$x .= self::writeShort((int) bcmod(bcdiv($value, "281474976710656"), "65536"));
+			$x .= self::writeShort((int) bcmod(bcdiv($value, "4294967296"), "65536"));
+			$x .= self::writeShort((int) bcmod(bcdiv($value, "65536"), "65536"));
+			$x .= self::writeShort((int) bcmod($value, "65536"));
+
+			return $x;
 	}
 
 	/**
 	 * Reads an 8-byte little-endian integer.
 	 *
 	 * @param string $str
-	 * @return int
+	 * @return int|string
 	 */
-	public static function readLLong(string $str) : int{
+	public static function readLLong(string $str){
 		return unpack("P", $str)[1];
 	}
 
 	/**
 	 * Writes an 8-byte little-endian integer.
 	 *
-	 * @param int $value
+	 * @param int|string $value
 	 * @return string
 	 */
-	public static function writeLLong(int $value) : string{
+	public static function writeLLong($value) : string{
 		return pack("P", $value);
 	}
 
@@ -427,9 +457,10 @@ class Binary{
 	 * @return int
 	 */
 	public static function readVarInt(string $buffer, int &$offset) : int{
+		$shift = PHP_INT_SIZE === 8 ? 63 : 31;
 		$raw = self::readUnsignedVarInt($buffer, $offset);
-		$temp = ((($raw << 63) >> 63) ^ $raw) >> 1;
-		return $temp ^ ($raw & (1 << 63));
+		$temp = ((($raw << $shift) >> $shift) ^ $raw) >> 1;
+		return $temp ^ ($raw & (1 << $shift));
 	}
 
 	/**
@@ -465,7 +496,9 @@ class Binary{
 	 * @return string
 	 */
 	public static function writeVarInt(int $v) : string{
-		$v = ($v << 32 >> 32);
+		if(PHP_INT_SIZE === 8){
+			$v = ($v << 32 >> 32);
+		}
 		return self::writeUnsignedVarInt(($v << 1) ^ ($v >> 31));
 	}
 
@@ -494,28 +527,103 @@ class Binary{
 
 
 	/**
-	 * Reads a 64-bit zigzag-encoded variable-length integer.
+	 * Reads a 64-bit zigzag-encoded variable-length integer from the supplied stream.
+	 *
+	 * @param string $buffer
+	 * @param int    &$offset
+	 *
+	 * @return int|string
+	 */
+	public static function readVarLong(string $buffer, int &$offset){
+		if(PHP_INT_SIZE === 8){
+			return self::readVarLong_64($buffer, $offset);
+		}else{
+			return self::readVarLong_32($buffer, $offset);
+		}
+	}
+
+	/**
+	 * Legacy BC Math zigzag VarLong reader. Will work on 32-bit or 64-bit, but will be slower than the regular 64-bit method.
+	 *
+	 * @param string $buffer
+	 * @param int    &$offset
+	 *
+	 * @return string
+	 */
+	public static function readVarLong_32(string $buffer, int &$offset) : string{
+		/** @var string $raw */
+		$raw = self::readUnsignedVarLong_32($buffer, $offset);
+		$result = bcdiv($raw, "2");
+		if(bcmod($raw, "2") === "1"){
+			$result = bcsub(bcmul($result, "-1"), "1");
+		}
+
+		return $result;
+	}
+
+	/**
+	 * 64-bit zizgag VarLong reader.
 	 *
 	 * @param string $buffer
 	 * @param int    &$offset
 	 *
 	 * @return int
 	 */
-	public static function readVarLong(string $buffer, int &$offset) : int{
-		$raw = self::readUnsignedVarLong($buffer, $offset);
+	public static function readVarLong_64(string $buffer, int &$offset) : int{
+		$raw = self::readUnsignedVarLong_64($buffer, $offset);
 		$temp = ((($raw << 63) >> 63) ^ $raw) >> 1;
 		return $temp ^ ($raw & (1 << 63));
 	}
 
 	/**
-	 * Reads a 64-bit unsigned variable-length integer.
+	 * Reads an unsigned VarLong from the supplied stream.
+	 *
+	 * @param string $buffer
+	 * @param int    &$offset
+	 *
+	 * @return int|string
+	 */
+	public static function readUnsignedVarLong(string $buffer, int &$offset){
+		if(PHP_INT_SIZE === 8){
+			return self::readUnsignedVarLong_64($buffer, $offset);
+		}else{
+			return self::readUnsignedVarLong_32($buffer, $offset);
+		}
+	}
+
+	/**
+	 * Legacy BC Math unsigned VarLong reader.
+	 *
+	 * @param string $buffer
+	 * @param int    &$offset
+	 *
+	 * @return string
+	 */
+	public static function readUnsignedVarLong_32(string $buffer, int &$offset) : string{
+		$value = "0";
+		for($i = 0; $i <= 63; $i += 7){
+			$b = ord($buffer{$offset++});
+			$value = bcadd($value, bcmul((string) ($b & 0x7f), bcpow("2", "$i")));
+
+			if(($b & 0x80) === 0){
+				return $value;
+			}elseif(!isset($buffer{$offset})){
+				throw new \UnexpectedValueException("Expected more bytes, none left to read");
+			}
+		}
+
+		throw new \InvalidArgumentException("VarLong did not terminate after 10 bytes!");
+	}
+
+	/**
+	 * 64-bit unsigned VarLong reader.
 	 *
 	 * @param string $buffer
 	 * @param int    &$offset
 	 *
 	 * @return int
 	 */
-	public static function readUnsignedVarLong(string $buffer, int &$offset) : int{
+	public static function readUnsignedVarLong_64(string $buffer, int &$offset) : int{
 		$value = 0;
 		for($i = 0; $i <= 63; $i += 7){
 			$b = ord($buffer{$offset++});
@@ -532,22 +640,92 @@ class Binary{
 	}
 
 	/**
-	 * Writes a 64-bit integer as a zigzag-encoded variable-length long.
+	 * Writes a 64-bit integer as a variable-length long.
+	 *
+	 * @param int|string $v
+	 * @return string up to 10 bytes
+	 */
+	public static function writeVarLong(int $v) : string{
+		if(PHP_INT_SIZE === 8){
+			return self::writeVarLong_64($v);
+		}else{
+			return self::writeVarLong_32((string) $v);
+		}
+	}
+
+	/**
+	 * Legacy BC Math zigzag VarLong encoder.
+	 *
+	 * @param string $v
+	 * @return string
+	 */
+	public static function writeVarLong_32(string $v) : string{
+		$v = bcmod(bcmul($v, "2"), "18446744073709551616");
+		if(bccomp($v, "0") == -1){
+			$v = bcsub(bcmul($v, "-1"), "1");
+		}
+
+		return self::writeUnsignedVarLong_32($v);
+	}
+
+	/**
+	 * 64-bit VarLong encoder.
 	 *
 	 * @param int $v
 	 * @return string
 	 */
-	public static function writeVarLong(int $v) : string{
-		return self::writeUnsignedVarLong(($v << 1) ^ ($v >> 63));
+	public static function writeVarLong_64(int $v) : string{
+		return self::writeUnsignedVarLong_64(($v << 1) ^ ($v >> 63));
 	}
 
 	/**
-	 * Writes a 64-bit unsigned integer as a variable-length long.
+	 * Writes a 64-bit integer as a variable-length long
+	 *
+	 * @param int|string $v
+	 * @return string up to 10 bytes
+	 */
+	public static function writeUnsignedVarLong(int $value) : string{
+		if(PHP_INT_SIZE === 8){
+			return self::writeUnsignedVarLong_64($v);
+		}else{
+			return self::writeUnsignedVarLong_32((string) $v);
+		}
+}
+
+	/**
+	 * Legacy BC Math unsigned VarLong encoder.
+	 *
+	 * @param string $value
+	 * @return string
+	 */
+	public static function writeUnsignedVarLong_32(string $value) : string{
+		$buf = "";
+
+		if(bccomp($value, "0") == -1){
+			$value = bcadd($value, "18446744073709551616");
+		}
+
+		for($i = 0; $i < 10; ++$i){
+			$byte = (int) bcmod($value, "128");
+			$value = bcdiv($value, "128");
+			if($value !== "0"){
+				$buf .= chr($byte | 0x80);
+			}else{
+				$buf .= chr($byte);
+				return $buf;
+			}
+		}
+
+		throw new \InvalidArgumentException("Value too large to be encoded as a VarLong");
+	}
+
+	/**
+	 * 64-bit unsigned VarLong encoder.
 	 * @param int $value
 	 *
 	 * @return string
 	 */
-	public static function writeUnsignedVarLong(int $value) : string{
+	public static function writeUnsignedVarLong_64(int $value) : string{
 		$buf = "";
 		for($i = 0; $i < 10; ++$i){
 			if(($value >> 7) !== 0){
