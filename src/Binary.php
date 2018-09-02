@@ -391,7 +391,7 @@ class Binary{
 			$value = "0";
 			for($i = 0; $i < 8; $i += 2){
 				$value = bcmul($value, "65536", 0);
-				$value = bcadd($value, (string) self::readShort(substr($x, $i, 2)), 0);
+				$value = bcadd($value, (string) self::readShort(substr($str, $i, 2)), 0);
 			}
 
 			if(bccomp($value, "9223372036854775807") == 1){
@@ -435,7 +435,7 @@ class Binary{
 	 * @return int|string
 	 */
 	public static function readLLong(string $str){
-		return unpack("P", $str)[1];
+		return PHP_INT_SIZE === 8 ? unpack("P", $str)[1] : self::readLong(strrev($str));
 	}
 
 	/**
@@ -445,7 +445,7 @@ class Binary{
 	 * @return string
 	 */
 	public static function writeLLong($value) : string{
-		return pack("P", $value);
+		return PHP_INT_SIZE === 8 ? pack("P", $value) : strrev(self::writeLong($value));
 	}
 
 
@@ -685,7 +685,7 @@ class Binary{
 	 * @param int|string $v
 	 * @return string up to 10 bytes
 	 */
-	public static function writeUnsignedVarLong(int $value) : string{
+	public static function writeUnsignedVarLong(int $v) : string{
 		if(PHP_INT_SIZE === 8){
 			return self::writeUnsignedVarLong_64($v);
 		}else{
@@ -696,20 +696,20 @@ class Binary{
 	/**
 	 * Legacy BC Math unsigned VarLong encoder.
 	 *
-	 * @param string $value
+	 * @param string $v
 	 * @return string
 	 */
-	public static function writeUnsignedVarLong_32(string $value) : string{
+	public static function writeUnsignedVarLong_32(string $v) : string{
 		$buf = "";
 
-		if(bccomp($value, "0") == -1){
-			$value = bcadd($value, "18446744073709551616");
+		if(bccomp($v, "0") == -1){
+			$v = bcadd($v, "18446744073709551616");
 		}
 
 		for($i = 0; $i < 10; ++$i){
-			$byte = (int) bcmod($value, "128");
-			$value = bcdiv($value, "128");
-			if($value !== "0"){
+			$byte = (int) bcmod($v, "128");
+			$v = bcdiv($v, "128");
+			if($v !== "0"){
 				$buf .= chr($byte | 0x80);
 			}else{
 				$buf .= chr($byte);
@@ -722,21 +722,21 @@ class Binary{
 
 	/**
 	 * 64-bit unsigned VarLong encoder.
-	 * @param int $value
+	 * @param int $v
 	 *
 	 * @return string
 	 */
-	public static function writeUnsignedVarLong_64(int $value) : string{
+	public static function writeUnsignedVarLong_64(int $v) : string{
 		$buf = "";
 		for($i = 0; $i < 10; ++$i){
-			if(($value >> 7) !== 0){
-				$buf .= chr($value | 0x80); //Let chr() take the last byte of this, it's faster than adding another & 0x7f.
+			if(($v >> 7) !== 0){
+				$buf .= chr($v | 0x80); //Let chr() take the last byte of this, it's faster than adding another & 0x7f.
 			}else{
-				$buf .= chr($value & 0x7f);
+				$buf .= chr($v & 0x7f);
 				return $buf;
 			}
 
-			$value = (($value >> 7) & (PHP_INT_MAX >> 6)); //PHP really needs a logical right-shift operator
+			$v = (($v >> 7) & (PHP_INT_MAX >> 6)); //PHP really needs a logical right-shift operator
 		}
 
 		throw new \InvalidArgumentException("Value too large to be encoded as a VarLong");
