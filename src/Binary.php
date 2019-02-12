@@ -26,6 +26,19 @@ declare(strict_types=1);
  */
 namespace pocketmine\utils;
 
+use InvalidArgumentException;
+use function chr;
+use function define;
+use function defined;
+use function ord;
+use function pack;
+use function preg_replace;
+use function round;
+use function sprintf;
+use function substr;
+use function unpack;
+use const PHP_INT_MAX;
+
 if(!defined("ENDIANNESS")){
 	define("ENDIANNESS", (pack("s", 1) === "\0\1" ? Binary::BIG_ENDIAN : Binary::LITTLE_ENDIAN));
 }
@@ -75,6 +88,7 @@ class Binary{
 	 * Reads a byte boolean
 	 *
 	 * @param string $b
+	 *
 	 * @return bool
 	 */
 	public static function readBool(string $b) : bool{
@@ -85,6 +99,7 @@ class Binary{
 	 * Writes a byte boolean
 	 *
 	 * @param bool $b
+	 *
 	 * @return string
 	 */
 	public static function writeBool(bool $b) : string{
@@ -95,6 +110,7 @@ class Binary{
 	 * Reads an unsigned byte (0 - 255)
 	 *
 	 * @param string $c
+	 *
 	 * @return int
 	 */
 	public static function readByte(string $c) : int{
@@ -105,6 +121,7 @@ class Binary{
 	 * Reads a signed byte (-128 - 127)
 	 *
 	 * @param string $c
+	 *
 	 * @return int
 	 */
 	public static function readSignedByte(string $c) : int{
@@ -115,6 +132,7 @@ class Binary{
 	 * Writes an unsigned/signed byte
 	 *
 	 * @param int $c
+	 *
 	 * @return string
 	 */
 	public static function writeByte(int $c) : string{
@@ -125,6 +143,7 @@ class Binary{
 	 * Reads a 16-bit unsigned big-endian number
 	 *
 	 * @param string $str
+	 *
 	 * @return int
 	 */
 	public static function readShort(string $str) : int{
@@ -168,6 +187,7 @@ class Binary{
 	 * Reads a 16-bit signed little-endian number
 	 *
 	 * @param string $str
+	 *
 	 * @return int
 	 */
 	public static function readSignedLShort(string $str) : int{
@@ -178,6 +198,7 @@ class Binary{
 	 * Writes a 16-bit signed/unsigned little-endian number
 	 *
 	 * @param int $value
+	 *
 	 * @return string
 	 */
 	public static function writeLShort(int $value) : string{
@@ -188,6 +209,7 @@ class Binary{
 	 * Reads a 3-byte big-endian number
 	 *
 	 * @param string $str
+	 *
 	 * @return int
 	 */
 	public static function readTriad(string $str) : int{
@@ -198,6 +220,7 @@ class Binary{
 	 * Writes a 3-byte big-endian number
 	 *
 	 * @param int $value
+	 *
 	 * @return string
 	 */
 	public static function writeTriad(int $value) : string{
@@ -208,6 +231,7 @@ class Binary{
 	 * Reads a 3-byte little-endian number
 	 *
 	 * @param string $str
+	 *
 	 * @return int
 	 */
 	public static function readLTriad(string $str) : int{
@@ -218,6 +242,7 @@ class Binary{
 	 * Writes a 3-byte little-endian number
 	 *
 	 * @param int $value
+	 *
 	 * @return string
 	 */
 	public static function writeLTriad(int $value) : string{
@@ -228,6 +253,7 @@ class Binary{
 	 * Reads a 4-byte signed integer
 	 *
 	 * @param string $str
+	 *
 	 * @return int
 	 */
 	public static function readInt(string $str) : int{
@@ -238,6 +264,7 @@ class Binary{
 	 * Writes a 4-byte integer
 	 *
 	 * @param int $value
+	 *
 	 * @return string
 	 */
 	public static function writeInt(int $value) : string{
@@ -248,6 +275,7 @@ class Binary{
 	 * Reads a 4-byte signed little-endian integer
 	 *
 	 * @param string $str
+	 *
 	 * @return int
 	 */
 	public static function readLInt(string $str) : int{
@@ -258,6 +286,7 @@ class Binary{
 	 * Writes a 4-byte signed little-endian integer
 	 *
 	 * @param int $value
+	 *
 	 * @return string
 	 */
 	public static function writeLInt(int $value) : string{
@@ -268,6 +297,7 @@ class Binary{
 	 * Reads a 4-byte floating-point number
 	 *
 	 * @param string $str
+	 *
 	 * @return float
 	 */
 	public static function readFloat(string $str) : float{
@@ -278,7 +308,7 @@ class Binary{
 	 * Reads a 4-byte floating-point number, rounded to the specified number of decimal places.
 	 *
 	 * @param string $str
-	 * @param int $accuracy
+	 * @param int    $accuracy
 	 *
 	 * @return float
 	 */
@@ -290,6 +320,7 @@ class Binary{
 	 * Writes a 4-byte floating-point number.
 	 *
 	 * @param float $value
+	 *
 	 * @return string
 	 */
 	public static function writeFloat(float $value) : string{
@@ -300,6 +331,7 @@ class Binary{
 	 * Reads a 4-byte little-endian floating-point number.
 	 *
 	 * @param string $str
+	 *
 	 * @return float
 	 */
 	public static function readLFloat(string $str) : float{
@@ -310,7 +342,7 @@ class Binary{
 	 * Reads a 4-byte little-endian floating-point number rounded to the specified number of decimal places.
 	 *
 	 * @param string $str
-	 * @param int $accuracy
+	 * @param int    $accuracy
 	 *
 	 * @return float
 	 */
@@ -322,6 +354,7 @@ class Binary{
 	 * Writes a 4-byte little-endian floating-point number.
 	 *
 	 * @param float $value
+	 *
 	 * @return string
 	 */
 	public static function writeLFloat(float $value) : string{
@@ -332,6 +365,7 @@ class Binary{
 	 * Returns a printable floating-point number.
 	 *
 	 * @param float $value
+	 *
 	 * @return string
 	 */
 	public static function printFloat(float $value) : string{
@@ -342,6 +376,7 @@ class Binary{
 	 * Reads an 8-byte floating-point number.
 	 *
 	 * @param string $str
+	 *
 	 * @return float
 	 */
 	public static function readDouble(string $str) : float{
@@ -352,6 +387,7 @@ class Binary{
 	 * Writes an 8-byte floating-point number.
 	 *
 	 * @param float $value
+	 *
 	 * @return string
 	 */
 	public static function writeDouble(float $value) : string{
@@ -362,6 +398,7 @@ class Binary{
 	 * Reads an 8-byte little-endian floating-point number.
 	 *
 	 * @param string $str
+	 *
 	 * @return float
 	 */
 	public static function readLDouble(string $str) : float{
@@ -370,7 +407,9 @@ class Binary{
 
 	/**
 	 * Writes an 8-byte floating-point little-endian number.
+	 *
 	 * @param float $value
+	 *
 	 * @return string
 	 */
 	public static function writeLDouble(float $value) : string{
@@ -382,6 +421,7 @@ class Binary{
 	 * Note that this method will return a string on 32-bit PHP.
 	 *
 	 * @param string $str
+	 *
 	 * @return int|string
 	 */
 	public static function readLong(string $str){
@@ -406,6 +446,7 @@ class Binary{
 	 * Writes an 8-byte integer.
 	 *
 	 * @param int|string $value
+	 *
 	 * @return string
 	 */
 	public static function writeLong($value) : string{
@@ -432,6 +473,7 @@ class Binary{
 	 * Reads an 8-byte little-endian integer.
 	 *
 	 * @param string $str
+	 *
 	 * @return int|string
 	 */
 	public static function readLLong(string $str){
@@ -442,6 +484,7 @@ class Binary{
 	 * Writes an 8-byte little-endian integer.
 	 *
 	 * @param int|string $value
+	 *
 	 * @return string
 	 */
 	public static function writeLLong($value) : string{
@@ -472,28 +515,30 @@ class Binary{
 	 *
 	 * @return int
 	 *
-	 * @throws \InvalidArgumentException if the var-int did not end after 5 bytes
+	 * @throws BinaryDataException if the var-int did not end after 5 bytes or there were not enough bytes
 	 */
 	public static function readUnsignedVarInt(string $buffer, int &$offset) : int{
 		$value = 0;
-		for($i = 0; $i <= 35; $i += 7){
+		for($i = 0; $i <= 28; $i += 7){
+			if(!isset($buffer{$offset})){
+				throw new BinaryDataException("No bytes left in buffer");
+			}
 			$b = ord($buffer{$offset++});
 			$value |= (($b & 0x7f) << $i);
 
 			if(($b & 0x80) === 0){
 				return $value;
-			}elseif(!isset($buffer{$offset})){
-				throw new \UnexpectedValueException("Expected more bytes, none left to read");
 			}
 		}
 
-		throw new \InvalidArgumentException("VarInt did not terminate after 5 bytes!");
+		throw new BinaryDataException("VarInt did not terminate after 5 bytes!");
 	}
 
 	/**
 	 * Writes a 32-bit integer as a zigzag-encoded variable-length integer.
 	 *
 	 * @param int $v
+	 *
 	 * @return string
 	 */
 	public static function writeVarInt(int $v) : string{
@@ -507,6 +552,7 @@ class Binary{
 	 * Writes a 32-bit unsigned integer as a variable-length integer.
 	 *
 	 * @param int $value
+	 *
 	 * @return string up to 5 bytes
 	 */
 	public static function writeUnsignedVarInt(int $value) : string{
@@ -523,7 +569,7 @@ class Binary{
 			$value = (($value >> 7) & (PHP_INT_MAX >> 6)); //PHP really needs a logical right-shift operator
 		}
 
-		throw new \InvalidArgumentException("Value too large to be encoded as a VarInt");
+		throw new InvalidArgumentException("Value too large to be encoded as a VarInt");
 	}
 
 
@@ -623,21 +669,24 @@ class Binary{
 	 * @param int    &$offset
 	 *
 	 * @return int
+	 *
+	 * @throws BinaryDataException if the var-int did not end after 10 bytes or there were not enough bytes
 	 */
 	public static function readUnsignedVarLong_64(string $buffer, int &$offset) : int{
 		$value = 0;
 		for($i = 0; $i <= 63; $i += 7){
+			if(!isset($buffer{$offset})){
+				throw new BinaryDataException("No bytes left in buffer");
+			}
 			$b = ord($buffer{$offset++});
 			$value |= (($b & 0x7f) << $i);
 
 			if(($b & 0x80) === 0){
 				return $value;
-			}elseif(!isset($buffer{$offset})){
-				throw new \UnexpectedValueException("Expected more bytes, none left to read");
 			}
 		}
 
-		throw new \InvalidArgumentException("VarLong did not terminate after 10 bytes!");
+		throw new BinaryDataException("VarLong did not terminate after 10 bytes!");
 	}
 
 	/**
@@ -673,6 +722,7 @@ class Binary{
 	 * 64-bit VarLong encoder.
 	 *
 	 * @param int $v
+	 *
 	 * @return string
 	 */
 	public static function writeVarLong_64(int $v) : string{
@@ -680,7 +730,7 @@ class Binary{
 	}
 
 	/**
-	 * Writes a 64-bit integer as a variable-length long
+	 * Writes a 64-bit unsigned integer as a variable-length long.
 	 *
 	 * @param int|string $v
 	 * @return string up to 10 bytes
@@ -739,6 +789,6 @@ class Binary{
 			$v = (($v >> 7) & (PHP_INT_MAX >> 6)); //PHP really needs a logical right-shift operator
 		}
 
-		throw new \InvalidArgumentException("Value too large to be encoded as a VarLong");
+		throw new InvalidArgumentException("Value too large to be encoded as a VarLong");
 	}
 }

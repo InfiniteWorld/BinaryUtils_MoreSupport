@@ -25,12 +25,17 @@ namespace pocketmine\utils;
 
 #include <rules/BinaryIO.h>
 
+use function chr;
+use function ord;
+use function strlen;
+use function substr;
+
 class BinaryStream{
 
 	/** @var int */
-	public $offset;
+	protected $offset;
 	/** @var string */
-	public $buffer;
+	protected $buffer;
 
 	public function __construct(string $buffer = "", int $offset = 0){
 		$this->buffer = $buffer;
@@ -40,6 +45,17 @@ class BinaryStream{
 	public function reset(){
 		$this->buffer = "";
 		$this->offset = 0;
+	}
+
+	/**
+	 * Rewinds the stream pointer to the start.
+	 */
+	public function rewind() : void{
+		$this->offset = 0;
+	}
+
+	public function setOffset(int $offset) : void{
+		$this->offset = $offset;
 	}
 
 	public function setBuffer(string $buffer = "", int $offset = 0){
@@ -56,27 +72,37 @@ class BinaryStream{
 	}
 
 	/**
-	 * @param int|bool $len
+	 * @param int $len
 	 *
 	 * @return string
+	 *
+	 * @throws BinaryDataException if there are not enough bytes left in the buffer
 	 */
-	public function get($len) : string{
-		if($len === true){
-			$str = substr($this->buffer, $this->offset);
-			$this->offset = strlen($this->buffer);
-			return $str;
-		}elseif($len < 0){
-			$this->offset = strlen($this->buffer) - 1;
+	public function get(int $len) : string{
+		if($len === 0){
 			return "";
-		}elseif($len === 0){
-			return "";
+		}
+		if($len < 0){
+			throw new \InvalidArgumentException("Length must be positive");
+		}
+
+		$remaining = strlen($this->buffer) - $this->offset;
+		if($remaining < $len){
+			throw new BinaryDataException("Not enough bytes left in buffer: need $len, have $remaining");
 		}
 
 		return $len === 1 ? $this->buffer{$this->offset++} : substr($this->buffer, ($this->offset += $len) - $len, $len);
 	}
 
+	/**
+	 * @return string
+	 * @throws BinaryDataException
+	 */
 	public function getRemaining() : string{
 		$str = substr($this->buffer, $this->offset);
+		if($str === false){
+			throw new BinaryDataException("No bytes left to read");
+		}
 		$this->offset = strlen($this->buffer);
 		return $str;
 	}
@@ -96,7 +122,7 @@ class BinaryStream{
 
 
 	public function getByte() : int{
-		return ord($this->buffer{$this->offset++});
+		return ord($this->get(1));
 	}
 
 	public function putByte(int $v){
@@ -187,6 +213,21 @@ class BinaryStream{
 		$this->buffer .= Binary::writeLFloat($v);
 	}
 
+	public function getDouble() : float{
+		return Binary::readDouble($this->get(8));
+	}
+
+	public function putDouble(float $v) : void{
+		$this->buffer .= Binary::writeDouble($v);
+	}
+
+	public function getLDouble() : float{
+		return Binary::readLDouble($this->get(8));
+	}
+
+	public function putLDouble(float $v) : void{
+		$this->buffer .= Binary::writeLDouble($v);
+	}
 
 	/**
 	 * @return int|string
