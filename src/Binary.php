@@ -695,7 +695,7 @@ class Binary{
 	 * @param int|string $v
 	 * @return string up to 10 bytes
 	 */
-	public static function writeVarLong(int $v) : string{
+	public static function writeVarLong($v) : string{
 		if(PHP_INT_SIZE === 8){
 			return self::writeVarLong_64($v);
 		}else{
@@ -735,7 +735,7 @@ class Binary{
 	 * @param int|string $v
 	 * @return string up to 10 bytes
 	 */
-	public static function writeUnsignedVarLong(int $v) : string{
+	public static function writeUnsignedVarLong($v) : string{
 		if(PHP_INT_SIZE === 8){
 			return self::writeUnsignedVarLong_64($v);
 		}else{
