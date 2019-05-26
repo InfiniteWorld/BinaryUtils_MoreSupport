@@ -80,7 +80,7 @@ class Binary{
 		return self::readLInt(self::writeInt($value));
 	}
 
-	public static function flipLongEndianness(int $value) : int{
+	public static function flipLongEndianness($value){
 		return self::readLLong(self::writeLong($value));
 	}
 
@@ -629,6 +629,8 @@ class Binary{
 	 * @param int    &$offset
 	 *
 	 * @return int|string
+	 *
+	 * @throws BinaryDataException if the var-int did not end after 10 bytes or there were not enough bytes
 	 */
 	public static function readUnsignedVarLong(string $buffer, int &$offset){
 		if(PHP_INT_SIZE === 8){
@@ -645,21 +647,24 @@ class Binary{
 	 * @param int    &$offset
 	 *
 	 * @return string
+	 *
+	 * @throws BinaryDataException if the var-int did not end after 10 bytes or there were not enough bytes
 	 */
 	public static function readUnsignedVarLong_32(string $buffer, int &$offset) : string{
 		$value = "0";
 		for($i = 0; $i <= 63; $i += 7){
+			if(!isset($buffer{$offset})){
+				throw new BinaryDataException("No bytes left in buffer");
+			}
 			$b = ord($buffer{$offset++});
 			$value = bcadd($value, bcmul((string) ($b & 0x7f), bcpow("2", "$i")));
 
 			if(($b & 0x80) === 0){
 				return $value;
-			}elseif(!isset($buffer{$offset})){
-				throw new \UnexpectedValueException("Expected more bytes, none left to read");
 			}
 		}
 
-		throw new \InvalidArgumentException("VarLong did not terminate after 10 bytes!");
+		throw new BinaryDataException("VarLong did not terminate after 10 bytes!");
 	}
 
 	/**
@@ -693,6 +698,7 @@ class Binary{
 	 * Writes a 64-bit integer as a variable-length long.
 	 *
 	 * @param int|string $v
+	 *
 	 * @return string up to 10 bytes
 	 */
 	public static function writeVarLong($v) : string{
@@ -707,6 +713,7 @@ class Binary{
 	 * Legacy BC Math zigzag VarLong encoder.
 	 *
 	 * @param string $v
+	 *
 	 * @return string
 	 */
 	public static function writeVarLong_32(string $v) : string{
@@ -733,6 +740,7 @@ class Binary{
 	 * Writes a 64-bit unsigned integer as a variable-length long.
 	 *
 	 * @param int|string $v
+	 *
 	 * @return string up to 10 bytes
 	 */
 	public static function writeUnsignedVarLong($v) : string{
@@ -747,6 +755,7 @@ class Binary{
 	 * Legacy BC Math unsigned VarLong encoder.
 	 *
 	 * @param string $v
+	 *
 	 * @return string
 	 */
 	public static function writeUnsignedVarLong_32(string $v) : string{
@@ -767,11 +776,12 @@ class Binary{
 			}
 		}
 
-		throw new \InvalidArgumentException("Value too large to be encoded as a VarLong");
+		throw new InvalidArgumentException("Value too large to be encoded as a VarLong");
 	}
 
 	/**
 	 * 64-bit unsigned VarLong encoder.
+	 *
 	 * @param int $v
 	 *
 	 * @return string
